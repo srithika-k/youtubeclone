@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MiniTube — YouTube-style UI (Single file)</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f1724; /* dark navy */
+      --card:#0b1220;
+      --muted:#94a3b8;
+      --accent:#ff3b3f;
+      --glass: rgba(255,255,255,0.03);
+      --radius:12px;
+      color-scheme: dark;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#e6eef8;background:linear-gradient(180deg,var(--bg),#071023);}
+
+    /* Top header */
+    header{height:64px;display:flex;align-items:center;gap:16px;padding:0 20px;background:transparent;position:sticky;top:0;backdrop-filter: blur(6px);z-index:30}
+    .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+    .logo .play{width:36px;height:36px;background:var(--accent);display:inline-grid;place-items:center;border-radius:8px;font-weight:800;color:white}
+    .search{flex:1;max-width:760px;display:flex;align-items:center;background:var(--glass);padding:6px;border-radius:999px;border:1px solid rgba(255,255,255,0.03)}
+    .search input{flex:1;background:transparent;border:0;padding:10px 12px;color:inherit;outline:none;font-size:14px}
+    .search button{background:transparent;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .actions{display:flex;gap:10px;align-items:center}
+    .icon-btn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--glass);border:1px solid rgba(255,255,255,0.02);cursor:pointer}
+
+    /* Layout */
+    .container{display:grid;grid-template-columns:240px 1fr;gap:18px;padding:18px}
+    nav{background:transparent;padding:10px;border-radius:12px}
+    nav ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+    nav a{display:flex;gap:12px;align-items:center;padding:10px;border-radius:10px;color:var(--muted);text-decoration:none}
+    nav a.active{background:linear-gradient(90deg, rgba(255,59,63,0.08), rgba(255,59,63,0.02));color:white}
+
+    main{padding:6px}
+    .section-title{display:flex;justify-content:space-between;align-items:center;margin:6px 4px 12px;color:var(--muted)}
+
+    /* Video grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.015));padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);cursor:pointer}
+    .thumb{width:100%;height:140px;border-radius:8px;overflow:hidden;background:#0a1018;display:block;position:relative}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .meta{display:flex;gap:10px;padding-top:10px}
+    .avatar{width:40px;height:40px;border-radius:50%;background:#0c1623;display:inline-block}
+    .meta .txt{flex:1}
+    .meta h4{margin:0;font-size:14px}
+    .meta p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+
+    /* Modal player */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(0,0,0,0.5),rgba(0,0,0,0.75));z-index:60;padding:20px}
+    .player{background:linear-gradient(180deg,#071224,#06121b);max-width:1100px;width:100%;border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.04)}
+    .player .controls{display:flex;justify-content:space-between;align-items:center;padding-top:8px;color:var(--muted)}
+
+    /* responsive */
+    @media (max-width:880px){.container{grid-template-columns:1fr}.logo{font-size:16px}.thumb{height:120px}}
+    @media (max-width:520px){header{padding:8px}.search{display:none}}
+
+    /* small helpers */
+    .muted{color:var(--muted);font-size:13px}
+    .pill{padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.02);font-size:13px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo"><div class="play">▶</div>MiniTube</div>
+
+    <div class="search" role="search">
+      <input id="searchInput" placeholder="Search" aria-label="Search videos" />
+      <button id="searchBtn">🔍</button>
+    </div>
+
+    <div class="actions">
+      <div class="icon-btn" title="Create">＋</div>
+      <div class="icon-btn" title="Notifications">🔔</div>
+      <div class="icon-btn" title="Account">👤</div>
+    </div>
+  </header>
+
+  <div class="container">
+    <nav>
+      <ul>
+        <li><a class="active">🏠 Home</a></li>
+        <li><a>🔥 Trending</a></li>
+        <li><a>📺 Subscriptions</a></li>
+        <li><a>📚 Library</a></li>
+        <li style="margin-top:8px"><a class="pill">Browse</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <div class="section-title"><h3 style="margin:0">Recommended</h3><span class="muted" id="resultCount">Showing all</span></div>
+
+      <div class="grid" id="grid">
+        <!-- cards will be populated by JS -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Player modal -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="player" role="dialog" aria-label="Video player">
+      <div id="playerContainer" style="position:relative;padding-top:56.25%">
+        <!-- iframe injected here -->
+      </div>
+      <div class="controls">
+        <div>
+          <strong id="playerTitle">Title</strong>
+          <div class="muted" id="playerMeta">Channel • 100K views • 2 days ago</div>
+        </div>
+        <button id="closeBtn" class="pill">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // SAMPLE data: list of videos. Replace with real data or fetch from a backend.
+    const videos = [
+      {id:'dQw4w9WgXcQ',title:'Never Gonna Give You Up',channel:'Rick Astley',views:'1.2B',thumb:'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg'},
+      {id:'3JZ_D3ELwOQ',title:'A calm coding playlist',channel:'DevMusic',views:'3.1M',thumb:'https://picsum.photos/seed/1/800/450'},
+      {id:'LXb3EKWsInQ',title:'Relaxing nature timelapse',channel:'NatureX',views:'890K',thumb:'https://picsum.photos/seed/2/800/450'},
+      {id:'e-ORhEE9VVg',title:'Pop hit single',channel:'TopPop',views:'12M',thumb:'https://picsum.photos/seed/3/800/450'},
+      {id:'kXYiU_JCYtU',title:'Epic rock performance',channel:'LiveBand',views:'45M',thumb:'https://picsum.photos/seed/4/800/450'},
+      {id:'fRh_vgS2dFE',title:'Dance tutorial',channel:'MoveIt',views:'2.8M',thumb:'https://picsum.photos/seed/5/800/450'},
+      {id:'9bZkp7q19f0',title:'Gangnam Style',channel:'PSY',views:'4.3B',thumb:'https://picsum.photos/seed/6/800/450'},
+      {id:'V-_O7nl0Ii0',title:'Motivational talk',channel:'InspireDaily',views:'980K',thumb:'https://picsum.photos/seed/7/800/450'}
+    ];
+
+    const grid = document.getElementById('grid');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const modal = document.getElementById('modal');
+    const playerContainer = document.getElementById('playerContainer');
+    const playerTitle = document.getElementById('playerTitle');
+    const playerMeta = document.getElementById('playerMeta');
+    const closeBtn = document.getElementById('closeBtn');
+    const resultCount = document.getElementById('resultCount');
+
+    function render(list){
+      grid.innerHTML='';
+      if(list.length===0){grid.innerHTML='<p class="muted">No results found</p>';resultCount.textContent='0 results';return}
+      resultCount.textContent=`${list.length} videos`;
+      list.forEach(v=>{
+        const card = document.createElement('div');card.className='card';
+        card.innerHTML = `
+          <div class="thumb" data-id="${v.id}" data-title="${escapeHtml(v.title)}" data-channel="${escapeHtml(v.channel)}">
+            <img src="${v.thumb}" alt="${escapeHtml(v.title)} thumbnail" loading="lazy" />
+          </div>
+          <div class="meta">
+            <div class="avatar"></div>
+            <div class="txt">
+              <h4>${escapeHtml(v.title)}</h4>
+              <p class="muted">${escapeHtml(v.channel)} • ${v.views} views</p>
+            </div>
+          </div>
+        `;
+        card.querySelector('.thumb').addEventListener('click', ()=>openPlayer(v));
+        grid.appendChild(card);
+      });
+    }
+
+    function escapeHtml(text){return (text||'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+
+    function openPlayer(video){
+      playerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${video.id}?autoplay=1" title="${escapeHtml(video.title)}" style="position:absolute;inset:0;border:0;width:100%;height:100%;border-radius:8px" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      playerTitle.textContent = video.title;
+      playerMeta.textContent = `${video.channel} • ${video.views} views`;
+      modal.style.display='flex';modal.setAttribute('aria-hidden','false');
+    }
+
+    function closePlayer(){playerContainer.innerHTML='';modal.style.display='none';modal.setAttribute('aria-hidden','true');}
+
+    closeBtn.addEventListener('click', closePlayer);
+    modal.addEventListener('click',(e)=>{if(e.target===modal)closePlayer();});
+
+    // simple search/filter (title + channel)
+    function doSearch(){
+      const q = searchInput.value.trim().toLowerCase();
+      if(!q){render(videos);return}
+      const filtered = videos.filter(v=> (v.title+ ' ' + v.channel).toLowerCase().includes(q));
+      render(filtered);
+    }
+    searchBtn.addEventListener('click', doSearch);
+    searchInput.addEventListener('keydown', (e)=>{if(e.key==='Enter')doSearch();});
+
+    // initial render
+    render(videos);
+
+    // keyboard accessibility: Esc closes modal
+    document.addEventListener('keydown', (e)=>{if(e.key==='Escape')closePlayer();});
+
+    // small helpers: show a friendly message when JavaScript disabled
+  </script>
+
+  <noscript>
+    <div style="padding:18px;color:#ffb4b4">This page needs JavaScript to show the video grid. Enable JavaScript or use a modern browser.</div>
+  </noscript>
+</body>
+</html>
